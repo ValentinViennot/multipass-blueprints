@@ -1,0 +1,47 @@
+description: A MicroK8s environment
+version: latest
+
+runs-on:
+- x86_64
+
+instances:
+  microk8s:
+    image: 22.04
+    limits:
+      min-cpu: 6
+      min-mem: 6G
+      min-disk: 40G
+    cloud-init:
+      vendor-data: |
+        snap:
+          commands:
+          - snap install microk8s --classic
+
+        runcmd:
+        - |
+          # wait for microk8s to be up 
+          microk8s status --wait-ready
+          # add `ubuntu` to the `docker` group
+          adduser ubuntu microk8s
+
+        - |
+          # disable swap
+          sysctl vm.swappiness=0
+          echo "vm.swappiness = 0" | tee -a /etc/sysctl.conf
+
+        - |
+          # disable unnecessary services
+          systemctl disable man-db.timer man-db.service --now
+          systemctl disable apport.service apport-autoreport.service  --now
+          systemctl disable apt-daily.service apt-daily.timer --now
+          systemctl disable apt-daily-upgrade.service apt-daily-upgrade.timer --now
+          systemctl disable unattended-upgrades.service --now
+          systemctl disable motd-news.service motd-news.timer --now
+          systemctl disable bluetooth.target --now
+          systemctl disable ua-messaging.service ua-messaging.timer --now
+
+        - |
+          # enable required addons
+          microk8s enable dns storage
+
+        final_message: "The system is finally up, after $UPTIME seconds"
